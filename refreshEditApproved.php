@@ -33,6 +33,7 @@ class RefreshEdit extends Maintenance {
 		parent::__construct();
 		$this->mDescription = "Refresh link tables";
 		$this->addOption( 'new-only', 'Only affect articles with just a single edit' );
+		$this->addOption( 'approved', 'Only last approved' );
 		$this->addOption( 'm', 'Maximum replication lag', false, true );
 		$this->addArg( 'start', 'Page_id to start from, default 1', false );
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
@@ -50,12 +51,13 @@ class RefreshEdit extends Maintenance {
 		$max = $this->getOption( 'm', 0 );
 		$start = $this->getArg( 0, 1 );
 		$new = $this->getOption( 'new-only', false );
+		$approved = $this->getOption( 'approved', false );
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );				
 		$rewrite = $this->getOption( 'rewrite', 1 );
 		$u = $this->getOption( 'u', false );		
 
-		$this->doRefreshEdit( $start, $new, $max, $ns, $category, $rewrite, $u );
+		$this->doRefreshEdit( $start, $new, $approved, $max, $ns, $category, $rewrite, $u );
 	}
 
 	/**
@@ -66,7 +68,7 @@ class RefreshEdit extends Maintenance {
 	 * @param $end int Page_id to stop at
 	 */
 
-	private function doRefreshEdit( $start, $newOnly = false, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
+	private function doRefreshEdit( $start, $newOnly = false, $approved = true, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
 
 		$reportingInterval = 100;
 		$dbr = wfGetDB( DB_SLAVE );
@@ -91,6 +93,14 @@ class RefreshEdit extends Maintenance {
 			$ns_restrict.=" && cl_from = page_id && cl_to = '$category'";
 		}
 
+		// Approved latest
+		if ( $approved ) {
+		
+			array_push( $tables, "approved_revs" );
+			// Only rev_id that are latest
+			$ns_restrict.=" rev_id = page_latest";
+			
+		}
 
 		if ( $newOnly ) {
 
