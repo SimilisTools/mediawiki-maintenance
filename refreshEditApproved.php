@@ -32,10 +32,10 @@ class RefreshEdit extends Maintenance {
 	public function __construct() {
 		parent::__construct();
 		$this->mDescription = "Refresh link tables";
-		$this->addOption( 'new-only', 'Only affect articles with just a single edit' );
 		$this->addOption( 'approved', 'Only last approved' );
 		$this->addOption( 'm', 'Maximum replication lag', false, true );
 		$this->addArg( 'start', 'Page_id to start from, default 1', false );
+		$this->addArg( 'old', 'Handle only pages touched at most n miliseconds ago', false );
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
 		$this->addOption( 'category', 'Category name, default none', false, true );
 		$this->addOption( 'rewrite', 'Rewriting of the content, default 1', false, true );
@@ -50,14 +50,14 @@ class RefreshEdit extends Maintenance {
 	public function execute() {
 		$max = $this->getOption( 'm', 0 );
 		$start = $this->getArg( 0, 1 );
-		$new = $this->getOption( 'new-only', false );
-		$approved = $this->getOption( 'approved', false );
+		$old = $this->getArg( 1, 0 );
+		$approved = $this->getOption( 'approved', true );
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );				
 		$rewrite = $this->getOption( 'rewrite', 1 );
 		$u = $this->getOption( 'u', false );		
 
-		$this->doRefreshEdit( $start, $new, $approved, $max, $ns, $category, $rewrite, $u );
+		$this->doRefreshEdit( $start, $old, $approved, $max, $ns, $category, $rewrite, $u );
 	}
 
 	/**
@@ -68,11 +68,12 @@ class RefreshEdit extends Maintenance {
 	 * @param $end int Page_id to stop at
 	 */
 
-	private function doRefreshEdit( $start, $newOnly = false, $approved = true, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
+	private function doRefreshEdit( $start, $old = 0, $approved = true, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
 
 		$reportingInterval = 100;
 		$dbr = wfGetDB( DB_SLAVE );
 		$start = intval( $start );
+		$old = intval( $old );
 		$ns_restrict = "page_namespace > -1";
 		$tables = array('page');
 		$seltables = array( 'page_id' );
@@ -98,55 +99,39 @@ class RefreshEdit extends Maintenance {
 		
 			array_push( $tables, "approved_revs" );
 			// Only rev_id that are latest
-			$ns_restrict.=" rev_id = page_latest";
+			$ns_restrict.=" && rev_id = page_latest";
 			
 		}
+		
+		
+		// Only if some values
+		if ( $old > 0 ) {
+			array_push( $tables, "revision" );
+			$timestamp = wfTimestamp( TS_MW ) - $old;
+			// We check page_touched
+			$ns_restrict.= " && page_latest = rev_id ";
+			$ns_restrict.= " && rev_timestamp > $timestamp ";
+		}
 
-		if ( $newOnly ) {
+		$res = $dbr->select( $tables,
+			$seltables,
+			array(
+				"page_id >= $start" ,
+				$ns_restrict ),
+			__METHOD__
+		);
+		$num = $dbr->numRows( $res );
+		$this->output( "$num articles...\n" );
 
-			$res = $dbr->select( $tables,
-				$seltables,
-				array(
-					'page_is_new' => 1,
-					"page_id >= $start" ,
-					$ns_restrict ),
-				__METHOD__
-			);
-			$num = $dbr->numRows( $res );
-			$this->output( "$num new articles...\n" );
-
-			$i = 0;
-			foreach ( $res as $row ) {
-				if ( !( ++$i % $reportingInterval ) ) {
-					$this->output( "$i\n" );
-					wfWaitForSlaves();
-				}
-
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u );
-				
+		$i = 0;
+		foreach ( $res as $row ) {
+			if ( !( ++$i % $reportingInterval ) ) {
+				$this->output( "$i\n" );
+				wfWaitForSlaves();
 			}
-		} else {
 
-			$res = $dbr->select( $tables,
-				$seltables,
-				array(
-					"page_id >= $start" ,
-					$ns_restrict ),
-				__METHOD__
-			);
-			$num = $dbr->numRows( $res );
-			$this->output( "$num articles...\n" );
-
-			$i = 0;
-			foreach ( $res as $row ) {
-				if ( !( ++$i % $reportingInterval ) ) {
-					$this->output( "$i\n" );
-					wfWaitForSlaves();
-				}
-
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u );
-				
-			}
+			self::fixEditFromArticle( $row->page_id, $rewrite, $u );
+			
 		}
 	}
 
