@@ -38,6 +38,7 @@ class RefreshEdit extends Maintenance {
 		$this->addOption( 'start', 'Page_id to start from, default 1', false, true );
 		// Last modifications. Remove new-only
 		$this->addOption( 'old', 'Handle only pages touched at most n minutes', false, true );
+		$this->addOption( 'id', 'Check specific page ID', false, true );
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
 		$this->addOption( 'rewrite', 'Rewriting of the content, default 1', false, true );
 		$this->addOption( 'u', 'User to run the script', false, true );
@@ -51,13 +52,14 @@ class RefreshEdit extends Maintenance {
 		$max = $this->getOption( 'm', 0 );
 		$start = $this->getOption( 'start', 1 );
 		$old = $this->getOption ( 'old', 0 );
+		$id = $this->getOption ( 'id', 0 );
 		$approved = $this->getOption( 'approved', true );
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );
 		$rewrite = $this->getOption( 'rewrite', 1 );
 		$u = $this->getOption( 'u', false );
 		
-		$this->doRefreshEdit( $start, $old, $approved, $max, $ns, $category, $rewrite, $u );
+		$this->doRefreshEdit( $start, $old, $id, $approved, $max, $ns, $category, $rewrite, $u );
 	}
 
 	/**
@@ -68,7 +70,7 @@ class RefreshEdit extends Maintenance {
 	 * @param $end int Page_id to stop at
 	 */
 
-	private function doRefreshEdit( $start, $old = 0, $approved = true, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
+	private function doRefreshEdit( $start, $old = 0, $id = 0, $approved = true, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
 
 		global $wgDBprefix;
 		
@@ -76,6 +78,7 @@ class RefreshEdit extends Maintenance {
 		$dbr = wfGetDB( DB_SLAVE );
 		$start = intval( $start );
 		$old = intval( $old );
+		$id = intval( $id );
 		$ns_restrict = $wgDBprefix."page.page_namespace > -1";
 		$tables = array('page');
 		$seltables = array( $wgDBprefix.'page.page_id' );
@@ -108,6 +111,12 @@ class RefreshEdit extends Maintenance {
 			$ns_restrict.= " AND ( ".$wgDBprefix."revision.rev_timestamp > $timestamp ) ";
 
 		}
+		// Only if a value
+		if ( $id > 0 ) {
+		
+			$ns_restrict.= " AND ( ".$wgDBprefix."page.page_id = ".$id." ) ";
+		}
+
 
 		$res = $dbr->select( $tables,
 			$seltables,
