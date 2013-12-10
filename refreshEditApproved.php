@@ -172,11 +172,32 @@ class RefreshEdit extends Maintenance {
 
 		while ( $i < $rewrite ) {
 
-			$page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user );
+			// $page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user ); Not working in some cases
+			self::externalCall( $page );
 			$i++;
 		}
 
 		$dbw->commit( __METHOD__ );
+	}
+
+	private static function externalCall( $page ) {
+	
+		global $externalCallApp:
+		
+		$titleText = $page->getTitle()->getPrefixedText();
+		
+		if ( !empty( $title ) && !empty( $externalCallApp ) ) {
+			
+			$descriptorspec = array(
+				array('pipe', 'r'),               // stdin
+				array('pipe', 'r'), // stdout
+				array('file', '/tmp/EditApprove.log', 'w'),               // stderr -> Generate one temp?
+			);
+			
+			$proc = proc_open("$externalCallApp \"$titleText\"", $descriptorspec, $pipes);
+		}
+		
+	
 	}
 
 }
