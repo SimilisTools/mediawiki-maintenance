@@ -6,22 +6,22 @@ my $file = shift;
 open(my $fh, '<', $file);
 my $last;
 while (my $line = readline $fh) {
-        if ( $line =~ /\S/ ) { $last = $line }
+	if ( $line =~ /\S/ ) { $last = $line }
 }
 
 my $iter = 0;
-if ( $last =~ /ID\s+(\d+)/ ) {
+while ( $iter < $repeat ) {
 
-        my $number = $1;
-        my $command = "php SMW_refreshData.php -v -s ".$number." -b SMWSQLStore3"." &> ".$file;
-        #print $command, "\n";
-        system($command);
+	if ( $last =~ /ID\s+(\d+)/ ) {
 
-        $iter++;
-        if ($iter > $repeat ) {
-                exit;
-        }
-}else{
-        exit;
+		my $number = $1;
+		my $command = "php SMW_refreshData.php -v -s ".$number." -b SMWSQLStore3"." &> ".$file;
+		#print $command, "\n";
+		system($command);
+
+		$iter++;
+
+	}else{
+		exit;
+	}
 }
-
