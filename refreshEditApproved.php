@@ -182,21 +182,26 @@ class RefreshEdit extends Maintenance {
 
 	private static function externalCall( $page ) {
 	
-		global $externalCallApp:
+		global $externalCallApp;
 		
 		$titleText = $page->getTitle()->getPrefixedText();
-
+		
 		if ( !empty( $titleText ) ) {
-
-			$titleText = str_replace( " ", "_", $titleText );
+	
+			$titleText = str_replace( " ", "_", $titleText );	
+			#echo $titleText, "\n";
 			$descriptorspec = array(
 				array('pipe', 'r'),               // stdin
 				array('pipe', 'r'), // stdout
 				array('file', '/tmp/EditApprove.log', 'w'),               // stderr -> Generate one temp?
 			);
-	
-			$proc = proc_open("$externalCallApp $titleText", $descriptorspec, $pipes);
+			setlocale(LC_CTYPE, "es_ES.UTF-8");
+			$titleText = urlencode( $titleText );	
+			$command = "$externalCallApp \"$titleText\"";
+			#echo $command;
+			$proc = proc_open( $command, $descriptorspec, $pipes);
 		}
+		
 	
 	}
 
