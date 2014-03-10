@@ -45,11 +45,13 @@ class DeleteBatchExtra extends Maintenance {
 		$this->addOption( 'i', "Interval to sleep between deletions" );
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
 		$this->addOption( 'category', 'Category name, default none', false, true );
+		$this->addOption( 'commit', 'Actually commit, otherwise print only', false, false, 'c' );
 	}
 
 	public function execute() {
 		global $wgUser;
 
+		$dbw = wfGetDB( DB_MASTER );
 		$start = 0;
 
 		# Options processing
@@ -59,6 +61,7 @@ class DeleteBatchExtra extends Maintenance {
 
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );
+		$commit = $this->getOption('commit', false );
 
 		$user = User::newFromName( $username );
 		if ( !$user ) {
@@ -81,12 +84,10 @@ class DeleteBatchExtra extends Maintenance {
 		// For categories
 		if ( $category ) {
 			array_push( $tables, "categorylinks" );
-			$category = mysql_real_escape_string( $category );
+			// $category = mysql_real_escape_string( $category, $dbr );
 			$category = str_replace(" ", "_", $category);
 			$ns_restrict.=" && cl_from = page_id && cl_to = '$category'";
 		}
-
-		$dbw = wfGetDB( DB_MASTER );
 
 
 		$res = $dbw->select( $tables,
@@ -102,7 +103,8 @@ class DeleteBatchExtra extends Maintenance {
 
 		$i = 0;
 		foreach ( $res as $row ) {
-			self::actualDelete( $res->page_id, $reason, $user );
+
+			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit );
 			if ( $interval ) {
 				sleep( $interval );
 			}
@@ -111,7 +113,7 @@ class DeleteBatchExtra extends Maintenance {
 
 	}
 	
-	public function actualDelete( $page_id, $reason, $user ) {
+	public function actualDelete( $dbw, $page_id, $reason, $user, $commit ) {
 	
 		$title = Title::newFromID( $page_id );
 		if ( is_null( $title ) ) {
@@ -133,15 +135,17 @@ class DeleteBatchExtra extends Maintenance {
 		}
 		$page = WikiPage::factory( $title );
 		$error = '';
-		$success = $page->doDeleteArticle( $reason, false, 0, false, $error, $user );
-		$dbw->commit( __METHOD__ );
-		if ( $success ) {
-			$this->output( " Deleted!\n" );
-		} else {
-			$this->output( " FAILED to delete article\n" );
+		
+		if ( $commit ) {
+			$success = $page->doDeleteArticle( $reason, false, 0, false, $error, $user );
+			$dbw->commit( __METHOD__ );
+			if ( $success ) {
+				$this->output( " Deleted!\n" );
+			} else {
+				$this->output( " FAILED to delete article\n" );
+			}
+	
 		}
-	
-	
 	}
 }
 
