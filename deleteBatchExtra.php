@@ -2,6 +2,7 @@
 /**
  * Deletes a batch of pages from DB access
  * Usage: php deleteBatch.php [-u <user>] [-r <reason>] [-i <interval>] [-namespace <namespace number>] [-category <category name>]
+ * [-commit] [-exclude <exclude list>]
  * where
  *	[listfile] is a file where each line contains the title of a page to be
  *             deleted, standard input is used if listfile is not given.
@@ -46,6 +47,7 @@ class DeleteBatchExtra extends Maintenance {
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
 		$this->addOption( 'category', 'Category name, default none', false, true );
 		$this->addOption( 'commit', 'Actually commit, otherwise print only', false, false, 'c' );
+		$this->addOption( 'exclude', 'Pages not to be deleted', false, true );
 	}
 
 	public function execute() {
@@ -62,6 +64,8 @@ class DeleteBatchExtra extends Maintenance {
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );
 		$commit = $this->getOption('commit', false );
+		
+		$exclude = $this->getOption( 'exclude', '' );
 
 		$user = User::newFromName( $username );
 		if ( !$user ) {
@@ -104,7 +108,7 @@ class DeleteBatchExtra extends Maintenance {
 		$i = 0;
 		foreach ( $res as $row ) {
 
-			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit );
+			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude );
 			if ( $interval ) {
 				sleep( $interval );
 			}
@@ -113,7 +117,7 @@ class DeleteBatchExtra extends Maintenance {
 
 	}
 	
-	public function actualDelete( $dbw, $page_id, $reason, $user, $commit ) {
+	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude ) {
 	
 		$title = Title::newFromID( $page_id );
 		if ( is_null( $title ) ) {
@@ -125,7 +129,9 @@ class DeleteBatchExtra extends Maintenance {
 			continue;
 		}
 
-		$this->output( $title->getPrefixedText() );
+		$titleText = $title->getPrefixedText();
+		$this->output( $titleText."\n" );
+		
 		$dbw->begin( __METHOD__ );
 		if ( $title->getNamespace() == NS_FILE ) {
 			$img = wfFindFile( $title );
@@ -136,7 +142,14 @@ class DeleteBatchExtra extends Maintenance {
 		$page = WikiPage::factory( $title );
 		$error = '';
 		
-		if ( $commit ) {
+		$excludeArr = array();
+		
+		if (! empty( $exclude ) ) {
+			$excludeArr = explode( ";", $exclude );
+			$this->output( "EXCLUDED: ".$exclude );
+		}
+		
+		if ( $commit && ! ( in_array( $titleText, $excludeArr ) ) ) {
 			$success = $page->doDeleteArticle( $reason, false, 0, false, $error, $user );
 			$dbw->commit( __METHOD__ );
 			if ( $success ) {
