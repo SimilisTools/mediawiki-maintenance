@@ -31,14 +31,16 @@ class MergeUserBatch extends Maintenance {
 
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = "Deletes a batch of pages";
+		$this->mDescription = "Deletes a batch of users";
+		
 		$this->addOption( 'u', "User to perform deletion", false, true );
-		$this->addOption( 'r', "Reason to delete page", false, true );
 		$this->addOption( 'i', "Interval to sleep between deletions" );
-		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
-		$this->addOption( 'category', 'Category name, default none', false, true );
-		$this->addOption( 'commit', 'Actually commit, otherwise print only', false, false, 'c' );
-		$this->addOption( 'exclude', 'Pages not to be deleted', false, true );
+		$this->addOption( 'old', "Users should have no editions in n days" );
+		$this->addOption( 'all', 'Remove all candidate users, not only those with no contributions', false, false, 'a' );
+		$this->addOption( 'commit', 'Actually do the process', false, false, 'c' );
+		$this->addOption( 'delete', 'Delete user pages', false, false, 'd' );
+		$this->addOption( 'exclude', 'Groups to be excluded from deletion', false, true );
+		$this->addOption( 'target', 'Target user to merge', false, true );
 	}
 
 	public function execute() {
@@ -49,14 +51,17 @@ class MergeUserBatch extends Maintenance {
 
 		# Options processing
 		$username = $this->getOption( 'u', 'Delete page script' );
-		$reason = $this->getOption( 'r', '' );
 		$interval = $this->getOption( 'i', 0 );
-
-		$ns = $this->getOption( 'namespace', -1 );
-		$category = $this->getOption( 'category', false );
-		$commit = $this->getOption('commit', false );
+		$old = $this->getOption( 'old', 90*24*60*60 ); //Default 90 days -> Let's change to seconds adapt
 		
-		$exclude = $this->getOption( 'exclude', '' );
+		$all = $this->getOption('all', false );
+		$commit = $this->getOption('commit', false );
+		$delete = $this->getOption('delete', false );
+		$exclude = $this->getOption( 'exclude', 'sysop' );
+		
+		$excludegrps = explode( ";", $exclude );
+		
+		$targetUser = $this->getOption( 'target', 'Anonymous' );
 
 		$user = User::newFromName( $username );
 		if ( !$user ) {
@@ -64,64 +69,77 @@ class MergeUserBatch extends Maintenance {
 		}
 		$wgUser = $user;
 
-		$ns_restrict = "page_namespace > -1";
-		$tables = array('page');
 		$seltables = array( 'page_id' );
-		
 
-		// Need to do for NS
-		if ( $ns > -1 ) {
-			if ( is_numeric( $ns ) ) {
-				$ns_restrict = "page_namespace = $ns";
-			}
-		}
+		#SELECT user_name FROM mw_user u LEFT JOIN mw_revision r ON u.user_name = r.rev_user_text WHERE r.rev_user_text IS NULL and u.user_registration < $difftime ;
+		$difftime = date('Ymdhms')-$old;
 
-		// For categories
-		if ( $category ) {
-			array_push( $tables, "categorylinks" );
-			// $category = mysql_real_escape_string( $category, $dbr );
-			$category = str_replace(" ", "_", $category);
-			$ns_restrict.=" && cl_from = page_id && cl_to = '$category'";
-		}
-
-
-		$res = $dbw->select( $tables,
-				$seltables,
-				array(
-				        "page_id >= $start" ,
-				        $ns_restrict ),
-				__METHOD__
+		$res = $dbw->select(
+			array('user', 'revision'),
+			array( 'user_name' ),
+			array(
+				'rev_user_text IS NULL' ,
+				'user_registration < '.$difftime
+			),
+			__METHOD__,
+			array(),
+			array( 'revision' => array( 'LEFT JOIN', array(
+				'user_name=rev_user_text' ) ) )
 		);
-		
-		$num = $dbw->numRows( $res );
-		$this->output( "$num articles...\n" );
 
-		$i = 0;
+		$targetUserObj = User::newFromName( $targetUser );
+
 		foreach ( $res as $row ) {
+		
+			$userToDelete = $row->user_name;
+			$this->output("Deleting ".$userToDelete."\n");
+							
+			$userToDeleteObj = User::newFromName( $userToDelete );
+			
+			$do = 0;
+			
+			if ( count( $excludegrps ) > 0 ) {
+			
+				$userGroups = $userToDeleteObj->getEffectiveGroups();
 
-			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude );
+				foreach ( $userGroups as $group ) {
+					
+					if ( in_array( $group, $excludegrps) ) {
+						
+						$do = $do + 1;
+					}
+				}
+			}
+			
+			if ( $do > 0  && $commit ) {
+				self::actualProcess( $userToDelete, $userToDeleteObj, $targetUser, $targetUserObj, $delete );
+			}
+			
 			if ( $interval ) {
 				sleep( $interval );
 			}
 			wfWaitForSlaves();
 		}
-		
-		$objOldUser = User::newFromName( $olduser_text );
-		$olduserID = $objOldUser->idForName();
-		
-		$objNewUser = User::newFromName( $newuser_text );
-		$newuserID = $objNewUser->idForName();
+		//
 
+	}
+	
+	private function actualProcess( $olduser_text, $objOldUser, $newuser_text, $objNewUser, $delete ) {
+	
+		$olduserID = $objOldUser->idForName();
+		$newuserID = $objNewUser->idForName();
+		
+			
 		// Execute
 		self::mergeEditcount( $newuserID, $olduserID );
 		self::mergeUser( $newuser_text, $newuserID, $olduser_text, $olduserID );
 		
-		if ( $deleteUser ) {
+		if ( $delete ) {
 			self::movePages( $newuser_text, $olduser_text );
 			self::deleteUser( $olduserID, $olduser_text);
 		}
-
-
+		
+	
 	}
 	
 
