@@ -96,7 +96,7 @@ class MergeUserBatch extends Maintenance {
 							
 			$userToDeleteObj = User::newFromName( $userToDelete );
 			
-			$do = 0;
+			$avoid = 0;
 			
 			if ( count( $excludegrps ) > 0 ) {
 			
@@ -106,12 +106,12 @@ class MergeUserBatch extends Maintenance {
 					
 					if ( in_array( $group, $excludegrps) ) {
 						
-						$do = $do + 1;
+						$avoid = $avoid + 1;
 					}
 				}
 			}
-			
-			if ( $do > 0  && $commit ) {
+						
+			if ( $avoid == 0  && $commit ) {
 				self::actualProcess( $userToDelete, $userToDeleteObj, $targetUser, $targetUserObj, $delete );
 			}
 			
