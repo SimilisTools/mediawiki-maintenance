@@ -92,7 +92,6 @@ class MergeUserBatch extends Maintenance {
 		foreach ( $res as $row ) {
 		
 			$userToDelete = $row->user_name;
-			$this->output("Deleting ".$userToDelete."\n");
 							
 			$userToDeleteObj = User::newFromName( $userToDelete );
 			
@@ -111,8 +110,12 @@ class MergeUserBatch extends Maintenance {
 				}
 			}
 						
-			if ( $avoid == 0  && $commit ) {
-				self::actualProcess( $userToDelete, $userToDeleteObj, $targetUser, $targetUserObj, $delete );
+			if ( $avoid == 0 ) {
+				
+				$this->output("Deleting ".$userToDelete."\n");
+				if ( $commit ) {
+					self::actualProcess( $userToDelete, $userToDeleteObj, $targetUser, $targetUserObj, $delete );
+				}
 			}
 			
 			if ( $interval ) {
