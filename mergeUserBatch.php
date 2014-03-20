@@ -72,7 +72,8 @@ class MergeUserBatch extends Maintenance {
 		$seltables = array( 'page_id' );
 
 		#SELECT user_name FROM mw_user u LEFT JOIN mw_revision r ON u.user_name = r.rev_user_text WHERE r.rev_user_text IS NULL and u.user_registration < $difftime ;
-		$difftime = date('Ymdhms')-$old;
+		$difftime = time()-$old;
+		$difftime = date("YmdHis", $difftime);
 
 		$res = $dbw->select(
 			array('user', 'revision'),
