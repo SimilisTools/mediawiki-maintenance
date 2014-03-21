@@ -55,9 +55,30 @@ class cleanupJobs extends Maintenance {
 		if ( $commit ) {
 		
 			if ( $storage == 'redis' ) {
-				$this->output( "Not implemented yet." );
+
+				// We should check
+				global $wgJobTypeConf;
+				// We assume default
+				if ( array_key_exists( 'redisServer', $wgJobTypeConf['default'] ) ) {
+					
+					$redisServer = $wgJobTypeConf['default']['redisServer'];
+					
+					$redisServerArr = explode( ":", $redisServer );
+					
+					// we ensure and check we have a port number 
+					if ( isset( $redisServerArr[1] ) && is_numeric( $redisServerArr[1] ) ) {
+					
+						$redis = new Redis();
+						$redis->connect( $redisServerArr[0], $redisServerArr[1] );
+						// We assume 0 DB. So we should have different instances of Redis
+						// Be careful!
+						$redis->flushDB();
+					}
+				}
+				
 		
 			} else {
+				// Actual cleaning
 				$res = $dbw->query("truncate table ".$jobsTable);
 			}
 		
