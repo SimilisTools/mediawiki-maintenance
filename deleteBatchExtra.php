@@ -104,7 +104,8 @@ class DeleteBatchExtra extends Maintenance {
 		
 		$num = $dbw->numRows( $res );
 		$this->output( "$num articles...\n" );
-
+		$this->output( "EXCLUDED: ".$exclude."\n" );
+		
 		$i = 0;
 		foreach ( $res as $row ) {
 
@@ -130,13 +131,13 @@ class DeleteBatchExtra extends Maintenance {
 		}
 
 		$titleText = $title->getPrefixedText();
-		$this->output( $titleText."\n" );
+		$this->output( $titleText."\t" );
 		
 		$dbw->begin( __METHOD__ );
 		if ( $title->getNamespace() == NS_FILE ) {
 			$img = wfFindFile( $title );
 			if ( $img && $img->isLocal() && !$img->delete( $reason ) ) {
-				$this->output( " FAILED to delete associated file... " );
+				$this->output( " FAILED to delete associated file... \n" );
 			}
 		}
 		$page = WikiPage::factory( $title );
@@ -146,7 +147,6 @@ class DeleteBatchExtra extends Maintenance {
 		
 		if (! empty( $exclude ) ) {
 			$excludeArr = explode( ";", $exclude );
-			$this->output( "EXCLUDED: ".$exclude );
 		}
 		
 		if ( $commit && ! ( in_array( $titleText, $excludeArr ) ) ) {
