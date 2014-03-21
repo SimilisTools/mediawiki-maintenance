@@ -34,21 +34,23 @@ class cleanupJobs extends Maintenance {
 	public function __construct() {
 		parent::__construct();
 		$this->mDescription = "Cleans up jobs queue";
-		$this->addOption( 'storage', 'Choose storing mechanism', false, 'mysql', 's' );
 		$this->addOption( 'commit', 'Actually do the process', false, false, 'c' );
 	}
 
 	public function execute() {
 
-		global $wgDBprefix;
-
-		$dbw = wfGetDB( DB_MASTER );
-
-		$jobsTable = $wgDBprefix."job";
-
-		# Options processing
-		$storage = $this->getOption('storage', 'mysql' );
+		// Options processing
 		$commit = $this->getOption('commit', false );
+		
+		// We should check job
+		global $wgJobTypeConf;
+		
+		// We choose storage
+		if ( isset( $wgJobTypeConf['default'] ) && array_key_exists( 'redisServer', $wgJobTypeConf['default'] ) ) {
+			$storage = 'redis';
+		} else {
+			$storage = 'mysql';
+		}
 		
 		// $this->output( $storage."\n" );
 		
@@ -56,30 +58,33 @@ class cleanupJobs extends Maintenance {
 		
 			if ( $storage == 'redis' ) {
 
-				// We should check
-				global $wgJobTypeConf;
 				// We assume default
-				if ( array_key_exists( 'redisServer', $wgJobTypeConf['default'] ) ) {
-					
-					$redisServer = $wgJobTypeConf['default']['redisServer'];
-					
-					$redisServerArr = explode( ":", $redisServer );
-					
-					// we ensure and check we have a port number 
-					if ( isset( $redisServerArr[1] ) && is_numeric( $redisServerArr[1] ) ) {
-					
-						$redis = new Redis();
-						$redis->connect( $redisServerArr[0], $redisServerArr[1] );
-						// We assume 0 DB. So we should have different instances of Redis
-						// Be careful!
-						$redis->flushDB();
-					}
+				$redisServer = $wgJobTypeConf['default']['redisServer'];
+				
+				$redisServerArr = explode( ":", $redisServer );
+				
+				// we ensure and check we have a port number 
+				if ( isset( $redisServerArr[1] ) && is_numeric( $redisServerArr[1] ) ) {
+				
+					$redis = new Redis();
+					$redis->connect( $redisServerArr[0], $redisServerArr[1] );
+					// We assume 0 DB. So we should have different instances of Redis
+					// Be careful!
+					$redis->flushDB();
+					$this->output("Cleaned up job queue in redis!");
 				}
 				
-		
 			} else {
+			
+				global $wgDBprefix;
+				
+				$dbw = wfGetDB( DB_MASTER );
+				
+				$jobsTable = $wgDBprefix."job";
+				
 				// Actual cleaning
 				$res = $dbw->query("truncate table ".$jobsTable);
+				$this->output("Cleaned up job queue in SQL DB!");
 			}
 		
 		}
