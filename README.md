@@ -9,3 +9,6 @@ Apply UserMerge (https://www.mediawiki.org/wiki/Extension:UserMerge) in batch fo
 * cleanupJobs.php
 This script cleans all ongoing jobs. This should adapt both to MySQL and Redis environments.
 
+* upgrade-MW.pl
+Simple Perl script for upgrading MW.
+
