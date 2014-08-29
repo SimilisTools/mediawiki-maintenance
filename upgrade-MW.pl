@@ -27,12 +27,21 @@ foreach my $comp ( @compdir ) {
 
 }
 
-#More thing to do?
-# cd $dir1
-# composer.phar update
+# Extra stuff
+if ( -f "$dir1/composer.json" ) {
+
+	system("cd $dir1; composer.phar update;");
+}
+
 # php maintenance/update.php
+system("php $dir1/maintenance/update.php");
 # php extensions/SemanticMediaWiki/maintenance/SMW_refreshData.php -d 50 -v
 
+if ( -d "$dir1/extensions/SemanticMediaWiki" ) {
+
+	system("php $dir1/extensions/SemanticMediaWiki/maintenance/SMW_refreshData.php -d 50 -v");
+
+}
 
 sub newDirelements {
 
