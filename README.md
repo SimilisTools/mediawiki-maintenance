@@ -12,3 +12,5 @@ This script cleans all ongoing jobs. This should adapt both to MySQL and Redis e
 * upgrade-MW.pl
 Simple Perl script for upgrading MW.
 
+* fillListText.php
+Maintenance script for filling pages from a list using the text in a wiki. Convenient for DB-powered templates.
