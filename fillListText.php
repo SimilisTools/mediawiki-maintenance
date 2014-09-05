@@ -55,20 +55,26 @@ class FillListText extends Maintenance {
 
 	private function doFillText( $list, $textfile, $overwrite = false, $u = false ) {
 
-		//TODO: Check text file exists
-
-		// Get text content
-		$text = file_get_contents( $textfile );
-
-		//TODO: Check list file exists
-		//TODO: Open list
-		
-
+		if ( file_exists( $textfile ) ) {
+			// Get text content
+			$text = file_get_contents( $textfile );
+			
+			if ( file_exists( $list ) ) {
+				$handle = fopen( $list,'r');
+				while ( ($data = fgetcsv($handle) ) !== FALSE ) {
+					// Submit article
+					$this->submitArticle( $data[0], $text. $overwrite, $u );
+				}
+			}
+		}
 	}
 
 	/**
-	 * Run fixEditFromArticle for all links on a given page_id
-	 * @param $id int The page_id
+	 * Run submitArticle taking text and title
+	 * @param $textTitle
+	 * @param $text
+	 * @param $overwrite
+	 * @param $u
 	 */
 	public static function submitArticle( $textTitle, $text, $overwrite, $u ) {
 
