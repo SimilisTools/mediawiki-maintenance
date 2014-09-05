@@ -35,6 +35,7 @@ class FillListText extends Maintenance {
 		$this->mDescription = "Fill pages from list";
 		$this->addOption( 'list', 'File with list', false, true );
 		$this->addOption( 'text', 'Text to introduce', false, true );
+		$this->addOption( 'prefix', 'Namespace prefix', false, true );
 		$this->addOption( 'overwrite', 'Rewriting of the content, default 1', false, true );
 		$this->addOption( 'u', 'User to run the script', false, true );
 		$this->setBatchSize( 100 );
@@ -44,16 +45,17 @@ class FillListText extends Maintenance {
 		$list = $this->getOption( 'list', false );
 		$textfile = $this->getOption( 'text', false );
 		$overwrite = $this->getOption( 'overwrite', false );
+		$prefix = $this->getOption( 'prefix', null );
 		$u = $this->getOption( 'u', false );
 
 		if ( $list !== false && $textfile !== false ) {
 
-			$this->doFillText( $list, $textfile, $overwrite, $u );
+			$this->doFillText( $list, $textfile, $prefix, $overwrite, $u );
 
 		}
 	}
 
-	private function doFillText( $list, $textfile, $overwrite = false, $u = false ) {
+	private function doFillText( $list, $textfile, $prefix = null, $overwrite = false, $u = false ) {
 
 		if ( file_exists( $textfile ) ) {
 			// Get text content
@@ -63,7 +65,11 @@ class FillListText extends Maintenance {
 				$handle = fopen( $list,'r');
 				while ( ($data = fgetcsv($handle) ) !== FALSE ) {
 					// Submit article
-					$this->submitArticle( $data[0], $text, $overwrite, $u );
+					$textTitle = $data[0];
+					if ( $prefix !== null ) {
+						$textTitle = $prefix.":".$textTitle;
+					}
+					$this->submitArticle( $textTitle, $text, $overwrite, $u );
 				}
 			}
 		}
