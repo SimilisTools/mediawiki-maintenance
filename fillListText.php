@@ -63,7 +63,7 @@ class FillListText extends Maintenance {
 				$handle = fopen( $list,'r');
 				while ( ($data = fgetcsv($handle) ) !== FALSE ) {
 					// Submit article
-					$this->submitArticle( $data[0], $text. $overwrite, $u );
+					$this->submitArticle( $data[0], $text, $overwrite, $u );
 				}
 			}
 		}
