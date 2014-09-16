@@ -38,6 +38,8 @@ require_once( __DIR__ . '/Maintenance.php' );
  */
 class DeleteBatchExtra extends Maintenance {
 
+	private $verbose;
+
 	public function __construct() {
 		parent::__construct();
 		$this->mDescription = "Deletes a batch of pages";
@@ -70,7 +72,7 @@ class DeleteBatchExtra extends Maintenance {
 
 		$exclude = $this->getOption( 'exclude', '' );
 
-		$verbose = $this->getOption( 'verbose', false );
+		self::$verbose = $this->getOption( 'verbose', false );
 
 		$user = User::newFromName( $username );
 		if ( !$user ) {
@@ -158,15 +160,19 @@ class DeleteBatchExtra extends Maintenance {
 			$success = $page->doDeleteArticle( $reason, $supress, 0, false, $error, $user );
 			$dbw->commit( __METHOD__ );
 			if ( $success ) {
-				if ( $verbose ) {
-					$this->output( $titleText."\t" );
-					$this->output( " Deleted!\n" );
-				}
+					self::printVerbose( $titleText."\t" );
+					self::printVerbose( " Deleted!\n" );
 			} else {
 				$this->output( $titleText."\t" );
 				$this->output( " FAILED to delete article\n" );
 			}
 	
+		}
+	}
+	
+	function printVerbose( $string ) {
+		if ( self::$verbose ) {
+			$this->output( $string );
 		}
 	}
 }
