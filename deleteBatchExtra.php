@@ -48,6 +48,7 @@ class DeleteBatchExtra extends Maintenance {
 		$this->addOption( 'category', 'Category name, default none', false, true );
 		$this->addOption( 'commit', 'Actually commit, otherwise print only', false, false, 'c' );
 		$this->addOption( 'supress', 'Remove history from pages', false, false, 's' );
+		$this->addOption( 'verbose', 'Show log of removing', false, false, 'v' );
 		$this->addOption( 'exclude', 'Pages not to be deleted', false, true );
 	}
 
@@ -68,6 +69,8 @@ class DeleteBatchExtra extends Maintenance {
 		$supress = $this->getOption('supress', false );
 
 		$exclude = $this->getOption( 'exclude', '' );
+
+		$verbose = $this->getOption( 'verbose', false );
 
 		$user = User::newFromName( $username );
 		if ( !$user ) {
@@ -111,7 +114,7 @@ class DeleteBatchExtra extends Maintenance {
 		$i = 0;
 		foreach ( $res as $row ) {
 
-			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude, $supress );
+			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude, $supress, $verbose );
 			if ( $interval ) {
 				sleep( $interval );
 			}
@@ -120,7 +123,7 @@ class DeleteBatchExtra extends Maintenance {
 
 	}
 	
-	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude, $supress ) {
+	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude, $supress, $verbose ) {
 	
 		$title = Title::newFromID( $page_id );
 		if ( is_null( $title ) ) {
@@ -133,12 +136,12 @@ class DeleteBatchExtra extends Maintenance {
 		}
 
 		$titleText = $title->getPrefixedText();
-		$this->output( $titleText."\t" );
 		
 		$dbw->begin( __METHOD__ );
 		if ( $title->getNamespace() == NS_FILE ) {
 			$img = wfFindFile( $title );
 			if ( $img && $img->isLocal() && !$img->delete( $reason ) ) {
+				$this->output( $titleText."\t" );
 				$this->output( " FAILED to delete associated file... \n" );
 			}
 		}
@@ -155,8 +158,12 @@ class DeleteBatchExtra extends Maintenance {
 			$success = $page->doDeleteArticle( $reason, $supress, 0, false, $error, $user );
 			$dbw->commit( __METHOD__ );
 			if ( $success ) {
-				$this->output( " Deleted!\n" );
+				if ( $verbose ) {
+					$this->output( $titleText."\t" );
+					$this->output( " Deleted!\n" );
+				}
 			} else {
+				$this->output( $titleText."\t" );
 				$this->output( " FAILED to delete article\n" );
 			}
 	
