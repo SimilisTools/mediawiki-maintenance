@@ -72,8 +72,7 @@ class DeleteBatchExtra extends Maintenance {
 
 		$exclude = $this->getOption( 'exclude', '' );
 
-		self::$verbose = $this->getOption( 'verbose', false );
-
+		$this->verbose = $this->getOption( 'verbose', false );
 		$user = User::newFromName( $username );
 		if ( !$user ) {
 			$this->error( "Invalid username", true );
@@ -116,7 +115,7 @@ class DeleteBatchExtra extends Maintenance {
 		$i = 0;
 		foreach ( $res as $row ) {
 
-			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude, $supress, $verbose );
+			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude, $supress, $this->verbose );
 			if ( $interval ) {
 				sleep( $interval );
 			}
@@ -125,7 +124,7 @@ class DeleteBatchExtra extends Maintenance {
 
 	}
 	
-	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude, $supress, $verbose ) {
+	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude, $supress ) {
 	
 		$title = Title::newFromID( $page_id );
 		if ( is_null( $title ) ) {
@@ -155,13 +154,16 @@ class DeleteBatchExtra extends Maintenance {
 		if (! empty( $exclude ) ) {
 			$excludeArr = explode( ";", $exclude );
 		}
-		
+
+		if ( ! ( in_array( $titleText, $excludeArr ) ) ) {	
+			self::printVerbose( $titleText."\n" );
+		}
+
 		if ( $commit && ! ( in_array( $titleText, $excludeArr ) ) ) {
 			$success = $page->doDeleteArticle( $reason, $supress, 0, false, $error, $user );
 			$dbw->commit( __METHOD__ );
 			if ( $success ) {
-					self::printVerbose( $titleText."\t" );
-					self::printVerbose( " Deleted!\n" );
+					self::printVerbose( "Deleted!\n" );
 			} else {
 				$this->output( $titleText."\t" );
 				$this->output( " FAILED to delete article\n" );
@@ -171,7 +173,7 @@ class DeleteBatchExtra extends Maintenance {
 	}
 	
 	function printVerbose( $string ) {
-		if ( self::$verbose ) {
+		if ( $this->verbose ) {
 			$this->output( $string );
 		}
 	}
