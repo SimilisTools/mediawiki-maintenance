@@ -47,6 +47,7 @@ class DeleteBatchExtra extends Maintenance {
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
 		$this->addOption( 'category', 'Category name, default none', false, true );
 		$this->addOption( 'commit', 'Actually commit, otherwise print only', false, false, 'c' );
+		$this->addOption( 'supress', 'Remove history from pages', false, false, 's' );
 		$this->addOption( 'exclude', 'Pages not to be deleted', false, true );
 	}
 
@@ -64,7 +65,8 @@ class DeleteBatchExtra extends Maintenance {
 		$ns = $this->getOption( 'namespace', -1 );
 		$category = $this->getOption( 'category', false );
 		$commit = $this->getOption('commit', false );
-		
+		$supress = $this->getOption('supress', false );
+
 		$exclude = $this->getOption( 'exclude', '' );
 
 		$user = User::newFromName( $username );
@@ -109,7 +111,7 @@ class DeleteBatchExtra extends Maintenance {
 		$i = 0;
 		foreach ( $res as $row ) {
 
-			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude );
+			self::actualDelete( $dbw, $row->page_id, $reason, $user, $commit, $exclude, $supress );
 			if ( $interval ) {
 				sleep( $interval );
 			}
@@ -118,7 +120,7 @@ class DeleteBatchExtra extends Maintenance {
 
 	}
 	
-	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude ) {
+	public function actualDelete( $dbw, $page_id, $reason, $user, $commit, $exclude, $supress ) {
 	
 		$title = Title::newFromID( $page_id );
 		if ( is_null( $title ) ) {
@@ -141,7 +143,7 @@ class DeleteBatchExtra extends Maintenance {
 			}
 		}
 		$page = WikiPage::factory( $title );
-		$error = '';
+		$error = array();
 		
 		$excludeArr = array();
 		
@@ -150,7 +152,7 @@ class DeleteBatchExtra extends Maintenance {
 		}
 		
 		if ( $commit && ! ( in_array( $titleText, $excludeArr ) ) ) {
-			$success = $page->doDeleteArticle( $reason, false, 0, false, $error, $user );
+			$success = $page->doDeleteArticle( $reason, $supress, 0, false, $error, $user );
 			$dbw->commit( __METHOD__ );
 			if ( $success ) {
 				$this->output( " Deleted!\n" );
