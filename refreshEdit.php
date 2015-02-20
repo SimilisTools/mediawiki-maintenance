@@ -33,6 +33,7 @@ class RefreshEdit extends Maintenance {
 		parent::__construct();
 		$this->mDescription = "Refresh link tables";
 		$this->addOption( 'new-only', 'Only affect articles with just a single edit' );
+		$this->addOption( 'purge', 'Do purge instead of edit' );
 		$this->addOption( 'm', 'Maximum replication lag', false, true );
 		$this->addArg( 'start', 'Page_id to start from, default 1', false );
 		$this->addOption( 'namespace', 'Namespace number, default all', false, true );
@@ -46,10 +47,11 @@ class RefreshEdit extends Maintenance {
 		$max = $this->getOption( 'm', 0 );
 		$start = $this->getArg( 0, 1 );
 		$new = $this->getOption( 'new-only', false );
+		$purge = $this->getOption( 'purge', false );
 		$ns = $this->getOption( 'namespace', -1 );
-		$category = $this->getOption( 'category', false );				
+		$category = $this->getOption( 'category', false );
 		$rewrite = $this->getOption( 'rewrite', 1 );
-		$u = $this->getOption( 'u', false );		
+		$u = $this->getOption( 'u', false );
 
 		$this->doRefreshEdit( $start, $new, $max, $ns, $category, $rewrite, $u );
 	}
@@ -62,7 +64,7 @@ class RefreshEdit extends Maintenance {
 	 * @param $end int Page_id to stop at
 	 */
 
-	private function doRefreshEdit( $start, $newOnly = false, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false ) {
+	private function doRefreshEdit( $start, $newOnly = false, $maxLag = false, $ns = -1, $category = false, $rewrite = 1, $u = false, $purge = false ) {
 
 		$reportingInterval = 100;
 		$dbr = wfGetDB( DB_SLAVE );
@@ -82,7 +84,7 @@ class RefreshEdit extends Maintenance {
 		// For categories
 		if ( $category ) {
 			array_push( $tables, "categorylinks" );
-			$category = mysql_real_escape_string( $category );
+			$category = addslashes( $category );
 			$category = str_replace(" ", "_", $category);
 			$ns_restrict.=" && cl_from = page_id && cl_to = '$category'";
 		}
@@ -108,7 +110,7 @@ class RefreshEdit extends Maintenance {
 					wfWaitForSlaves();
 				}
 
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u );
+				self::fixEditFromArticle( $row->page_id, $rewrite, $u, $purge );
 				
 			}
 		} else {
@@ -130,7 +132,7 @@ class RefreshEdit extends Maintenance {
 					wfWaitForSlaves();
 				}
 
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u );
+				self::fixEditFromArticle( $row->page_id, $rewrite, $u, $purge );
 				
 			}
 		}
@@ -141,7 +143,7 @@ class RefreshEdit extends Maintenance {
 	 * Run fixEditFromArticle for all links on a given page_id
 	 * @param $id int The page_id
 	 */
-	public static function fixEditFromArticle( $id, $rewrite, $u ) {
+	public static function fixEditFromArticle( $id, $rewrite, $u, $purge ) {
 
 		// Default, no user
 		$user = null;
@@ -161,18 +163,22 @@ class RefreshEdit extends Maintenance {
 			return;
 		}
 
-		$dbw = wfGetDB( DB_MASTER );
-		$dbw->begin( __METHOD__ );
+		//$dbw = wfGetDB( DB_MASTER );
+		//$dbw->begin( __METHOD__ );
 
 		$i = 0;
 
 		while ( $i < $rewrite ) {
 
-			$page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user );
+			if ( $purge ) {
+				$page->doPurge();
+			} else {
+				$page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user );
+			}
 			$i++;
 		}
 
-		$dbw->commit( __METHOD__ );
+		//$dbw->commit( __METHOD__ );
 	}
 
 }
