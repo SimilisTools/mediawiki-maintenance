@@ -53,7 +53,7 @@ class RefreshEdit extends Maintenance {
 		$rewrite = $this->getOption( 'rewrite', 1 );
 		$u = $this->getOption( 'u', false );
 
-		$this->doRefreshEdit( $start, $new, $max, $ns, $category, $rewrite, $u );
+		$this->doRefreshEdit( $start, $new, $max, $ns, $category, $rewrite, $u, $purge );
 	}
 
 	/**
@@ -89,6 +89,12 @@ class RefreshEdit extends Maintenance {
 			$ns_restrict.=" && cl_from = page_id && cl_to = '$category'";
 		}
 
+		// Default, no user
+		$user = null;
+
+		if ( $u ) {
+			$user = User::newFromName( $u );
+		}
 
 		if ( $newOnly ) {
 
@@ -110,7 +116,7 @@ class RefreshEdit extends Maintenance {
 					wfWaitForSlaves();
 				}
 
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u, $purge );
+				self::fixEditFromArticle( $row->page_id, $rewrite, $user, $purge );
 				
 			}
 		} else {
@@ -132,7 +138,7 @@ class RefreshEdit extends Maintenance {
 					wfWaitForSlaves();
 				}
 
-				self::fixEditFromArticle( $row->page_id, $rewrite, $u, $purge );
+				self::fixEditFromArticle( $row->page_id, $rewrite, $user, $purge );
 				
 			}
 		}
@@ -143,23 +149,11 @@ class RefreshEdit extends Maintenance {
 	 * Run fixEditFromArticle for all links on a given page_id
 	 * @param $id int The page_id
 	 */
-	public static function fixEditFromArticle( $id, $rewrite, $u, $purge ) {
-
-		// Default, no user
-		$user = null;
-
-		if ( $u ) {
-			$user = User::newFromName( $u );
-		}
+	public static function fixEditFromArticle( $id, $rewrite, $user, $purge ) {
 
 		$page = WikiPage::newFromID( $id );
 
 		if ( $page === null ) {
-			return;
-		}
-
-		$text = $page->getRawText();
-		if ( $text === false ) {
 			return;
 		}
 
@@ -173,6 +167,11 @@ class RefreshEdit extends Maintenance {
 			if ( $purge ) {
 				$page->doPurge();
 			} else {
+			
+				$text = $page->getRawText();
+				if ( $text === false ) {
+					return;
+				}
 				$page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user );
 			}
 			$i++;
