@@ -113,7 +113,7 @@ class RefreshEdit extends Maintenance {
 			foreach ( $res as $row ) {
 				if ( !( ++$i % $reportingInterval ) ) {
 					$this->output( "$i\n" );
-					wfWaitForSlaves();
+					// wfWaitForSlaves(); ? Doubt if necessary
 				}
 
 				self::fixEditFromArticle( $row->page_id, $rewrite, $user, $purge );
@@ -135,7 +135,7 @@ class RefreshEdit extends Maintenance {
 			foreach ( $res as $row ) {
 				if ( !( ++$i % $reportingInterval ) ) {
 					$this->output( "$i\n" );
-					wfWaitForSlaves();
+					// wfWaitForSlaves(); ? Doubt if necessary
 				}
 
 				self::fixEditFromArticle( $row->page_id, $rewrite, $user, $purge );
