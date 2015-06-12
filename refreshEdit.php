@@ -167,12 +167,26 @@ class RefreshEdit extends Maintenance {
 			if ( $purge ) {
 				$page->doPurge();
 			} else {
-			
-				$text = $page->getRawText();
-				if ( $text === false ) {
-					return;
+
+				// Submit content
+				// Back-compatibility, just in case
+				if ( method_exists ( $page, "doEditContent" ) ) {
+					$content = $page->getContent();
+
+					if ( $content === false ) {
+						return;
+					}
+
+					$status = $page->doEditContent( $content, "Edit Maintenance", EDIT_FORCE_BOT, false, $user );
+				} else {
+
+					$text = $page->getRawText();
+					if ( $text === false ) {
+						return;
+					}
+
+					$status = $page->doEdit( $text, "Edit Maintenance", EDIT_FORCE_BOT, false, $user );
 				}
-				$page->doEdit( $text, 'Edit Maintenance', EDIT_FORCE_BOT, false, $user );
 			}
 			$i++;
 		}
